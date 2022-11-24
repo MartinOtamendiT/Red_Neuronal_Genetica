@@ -21,6 +21,8 @@ from sklearn.model_selection import train_test_split
 from sklearn.metrics import mean_squared_error
 from sklearn.metrics import r2_score
 from sklearn.metrics import classification_report,confusion_matrix
+from sklearn.model_selection import cross_validate
+from sklearn.model_selection import KFold
 from math import sqrt
 
 #Lectura del dataframe de forma global.
@@ -36,8 +38,9 @@ df[predictors] = df[predictors]/df[predictors].max()
 X = df[predictors].values
 #Arreglo de los valores de la variable de clase (dependiente/salida)
 y = df[target_column].values
-#Divide dataset en test y data.
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.50, random_state=40)
+#Determinamos K para el algoritmo KFolds Cross Validation.
+K=2
+kf = KFold(n_splits=K)
 
 #Clase individuo.
 #Permite la creación de un nuevo individuo.
@@ -148,19 +151,18 @@ class Indivual():
         capasOcultas = []
         for i in range (self.get_hidden_layers2Int()):
             capasOcultas.append(self.get_num_neurons2Int())
-
         #Aplicamos los hiperparámetros necesarios para generar el modelo de la red neuronal (instancia).
         mlp = MLPClassifier(hidden_layer_sizes=tuple(capasOcultas), activation='relu', learning_rate='constant', learning_rate_init=self.get_learning_rate2Float(), momentum=self.get_momentum_2Float(), solver='sgd', max_iter=self.get_num_epochs2Int(), verbose=False)
-        # Método para poder entrenar la red neuronal.
-        mlp.fit(X_train,y_train)
-        # Prediccion a partir del entrenamiento y el test
-        predict_test = mlp.predict(X_test)
-        predict_train = mlp.predict(X_train)
-        resultado=confusion_matrix(y_train,predict_train)
+        _scoring=["accuracy"]
+        #Entrenamos la red neuronal y validamos su desempeño con Cross Validation.
+        scores = cross_validate(estimator=mlp,X=X,y=np.ravel(y),cv=K,return_train_score=True)
+        #print(scores)
+        """resultado=confusion_matrix(y_train,predict_train)
         diagonal = np.trace(resultado)
         accuracy = (diagonal / y_test.shape[0])*100
         print(classification_report(y_train,predict_train))
-        print(f"Accuracy: {accuracy}%")
+        print(f"Accuracy: {accuracy}%")"""
+        accuracy=np.max(scores['test_score'])
         return accuracy
 
 #Función que crea una poblacion inicial. Se retorna una arreglo de individuos.
@@ -182,7 +184,6 @@ if __name__ == '__main__':
     target_column = ['clase'] 
     predictors = list(set(list(df.columns))-set(target_column))
     df[predictors] = df[predictors]/df[predictors].max()
-    print(df[predictors].values)
     
     X = df[predictors].values
     y = df[target_column].values
