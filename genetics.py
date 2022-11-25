@@ -161,9 +161,9 @@ class Indivual():
         #Entrenamos mediante validación cruzada.
         for train_i, test_i in skf.split(X, y):
             #Divide el dataset en entrenamiento y prueba para los predictores.
-            x_train_fold, x_test_fold = X[train_i],X[train_i]
+            x_train_fold, x_test_fold = X[train_i],X[test_i]
             #Divide el dataset en entrenamiento y prueba para el target.
-            y_train_fold, y_test_fold = y[test_i], y[test_i]
+            y_train_fold, y_test_fold = y[train_i], y[test_i]
             #Entrena red neuronal.
             mlp.fit(x_train_fold, np.ravel(y_train_fold))
             #Prueba red neuronal y guarda el resultado en acc_list.
@@ -193,50 +193,56 @@ class Population():
     def reproduction(self):
         point=0
         parents=[]
+        Chromosome1=[]
+        Chromosome2=[]
         
-        for individuo in self.selected:
+        for i in range(len(self.selected)):
             #Selecciona dos padres al azar.
             parents=random.sample(self.selected, 2)
 
             #Define punto de separación.
             point = np.random.randint(1, 3)
             #Combina las estructuras de ambos padres para el gen: número de neuronas.
-            individuo.get_num_neurons()[:point]=parents[0].get_num_neurons()[:point]
-            individuo.get_num_neurons()[point:]=parents[1].get_num_neurons()[point:]
-
+            Chromosome1.append(np.concatenate((parents[0].get_num_neurons()[:point],parents[1].get_num_neurons()[point:])))
+            Chromosome2.append(np.concatenate((parents[1].get_num_neurons()[:point],parents[0].get_num_neurons()[point:])))
+            
             #Define punto de separación.
             point = np.random.randint(1, 3)
-            #Combina las estructuras de ambos padres para el gen: número de neuronas.
-            individuo.get_hidden_layers()[:point]=parents[0].get_hidden_layers()[:point]
-            individuo.get_hidden_layers()[point:]=parents[1].get_hidden_layers()[point:]
+            #Combina las estructuras de ambos padres para el gen: número de capas ocultas.
+            Chromosome1.append(np.concatenate((parents[0].get_hidden_layers()[:point],parents[1].get_hidden_layers()[point:])))
+            Chromosome2.append(np.concatenate((parents[1].get_hidden_layers()[:point],parents[0].get_hidden_layers()[point:])))
 
             #Define punto de separación.
             point = np.random.randint(1, 9)
-            #Combina las estructuras de ambos padres para el gen: número de neuronas.
-            individuo.get_num_epochs()[:point]=parents[0].get_num_epochs()[:point]
-            individuo.get_num_epochs()[point:]=parents[1].get_num_epochs()[point:]
+            #Combina las estructuras de ambos padres para el gen: número de épocas.
+            
+            Chromosome1.append(np.concatenate((parents[0].get_num_epochs()[:point],parents[1].get_num_epochs()[point:])))
+            Chromosome2.append(np.concatenate((parents[1].get_num_epochs()[:point],parents[0].get_num_epochs()[point:])))
 
             #Define punto de separación.
             point = np.random.randint(1, 6)
-            #Combina las estructuras de ambos padres para el gen: número de neuronas.
-            individuo.get_learning_rate()[:point]=parents[0].get_learning_rate()[:point]
-            individuo.get_learning_rate()[point:]=parents[1].get_learning_rate()[point:]
+            #Combina las estructuras de ambos padres para el gen: learning rate.
+            Chromosome1.append(np.concatenate((parents[0].get_learning_rate()[:point],parents[1].get_learning_rate()[point:])))
+            Chromosome2.append(np.concatenate((parents[1].get_learning_rate()[:point],parents[0].get_learning_rate()[point:])))
 
             #Define punto de separación.
             point = np.random.randint(1, 6)
-            #Combina las estructuras de ambos padres para el gen: número de neuronas.
-            individuo.get_momentum()[:point]=parents[0].get_momentum()[:point]
-            individuo.get_momentum()[point:]=parents[1].get_momentum()[point:]
+            #Combina las estructuras de ambos padres para el gen: momentum.
+            Chromosome1.append(np.concatenate((parents[0].get_momentum()[:point],parents[1].get_momentum()[point:])))
+            Chromosome2.append(np.concatenate((parents[1].get_momentum()[:point],parents[0].get_momentum()[point:])))
 
-            individuo.calculate_fitness()
+            child1=Indivual(Chromosome1)
+            child2=Indivual(Chromosome2)
             """print(f"Punto:{point}")
-            print(f"Padre {parents[0].get_num_epochs()}")
-            print(f"Madre {parents[1].get_num_epochs()}")
-            print(f"Nuevo gen: {individuo.get_num_epochs()}")"""
-            self.population.append(individuo)
-            #population[i][:point] = father[0][:point]
-            #population[i][point:] = father[1][point:]
-        #self.population=self.selected
+            print(f"Padre: {parents[0].get_num_epochs()}")
+            print(f"Madre: {parents[1].get_num_epochs()}")
+            print(f"Nuevo gen 1: {Chromosome1[2]}")
+            print(f"Nuevo gen 2: {Chromosome2[2]}")"""
+            self.selected.append(child1)
+            self.selected.append(child2)
+            Chromosome1=[]
+            Chromosome2=[]
+        self.population=self.selected
     
     def get_best(self):
         return max(individuo.fit for individuo in self.population)
@@ -248,15 +254,13 @@ class Population():
         return np.mean(individuo.fit for individuo in self.population)
             
             
-
-
 #Algoritmo genético.
 def genetics(population_size, n_generations):
     print("Generando poblacion")
     ParametrosRNA = Population(population_size)
     for i in range(n_generations):
         print(f"**********Generacion {i}**************")
-        ParametrosRNA.selection(10)
+        ParametrosRNA.selection(4)
         ParametrosRNA.reproduction()
         #print(ParametrosRNA.population[8].printChromosome())
         #print(ParametrosRNA.population[9].printChromosome())
@@ -275,7 +279,6 @@ def genetics(population_size, n_generations):
 #Repetir varias generaciones
 
 if __name__ == '__main__':
-    genetics(population_size=20, n_generations=2)
+    genetics(population_size=6, n_generations=2)
     #fish=Indivual()
     #print(fish.get_num_epochs())
-    
