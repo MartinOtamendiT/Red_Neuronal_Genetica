@@ -16,13 +16,12 @@ import random
 import matplotlib.pyplot as plt
 import sklearn
 from sklearn.neural_network import MLPClassifier
-from sklearn.neural_network import MLPRegressor
+from sklearn import datasets, metrics
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import mean_squared_error
 from sklearn.metrics import r2_score
 from sklearn.metrics import classification_report,confusion_matrix
-from sklearn.model_selection import cross_validate
-from sklearn.model_selection import KFold
+from sklearn.model_selection import cross_validate,KFold,cross_val_score,StratifiedKFold
 from math import sqrt
 
 #Lectura del dataframe de forma global.
@@ -34,13 +33,14 @@ predictors = list(set(list(df.columns))-set(target_column))
 #Normalización de los predictores (rango 0 a 1).
 df[predictors] = df[predictors]/df[predictors].max()
 
-#Arreglo de los valores de las variables independientes (entrada.)
+#Arreglo de los valores de las variables independientes (entrada).
 X = df[predictors].values
-#Arreglo de los valores de la variable de clase (dependiente/salida)
+#Arreglo de los valores de la variable de clase (dependiente/salida).
 y = df[target_column].values
-#Determinamos K para el algoritmo KFolds Cross Validation.
+#Determinamos K para el algoritmo Stratified KFolds Cross Validation.
 K=2
-kf = KFold(n_splits=K)
+skf = StratifiedKFold(n_splits=K, shuffle=True, random_state=1)
+acc_list=[]
 
 #Clase individuo.
 #Permite la creación de un nuevo individuo.
@@ -153,16 +153,20 @@ class Indivual():
             capasOcultas.append(self.get_num_neurons2Int())
         #Aplicamos los hiperparámetros necesarios para generar el modelo de la red neuronal (instancia).
         mlp = MLPClassifier(hidden_layer_sizes=tuple(capasOcultas), activation='relu', learning_rate='constant', learning_rate_init=self.get_learning_rate2Float(), momentum=self.get_momentum_2Float(), solver='sgd', max_iter=self.get_num_epochs2Int(), verbose=False)
-        _scoring=["accuracy"]
-        #Entrenamos la red neuronal y validamos su desempeño con Cross Validation.
-        scores = cross_validate(estimator=mlp,X=X,y=np.ravel(y),cv=K,return_train_score=True)
-        #print(scores)
-        """resultado=confusion_matrix(y_train,predict_train)
-        diagonal = np.trace(resultado)
-        accuracy = (diagonal / y_test.shape[0])*100
-        print(classification_report(y_train,predict_train))
-        print(f"Accuracy: {accuracy}%")"""
-        accuracy=np.max(scores['test_score'])
+        #Entrenamos mediante validación cruzada.
+        for train_i, test_i in skf.split(X, y):
+            #Divide el dataset en entrenamiento y prueba para los predictores.
+            x_train_fold, x_test_fold = X[train_i],X[train_i]
+            #Divide el dataset en entrenamiento y prueba para el target.
+            y_train_fold, y_test_fold = y[test_i], y[test_i]
+            #Entrena red neuronal.
+            mlp.fit(x_train_fold, np.ravel(y_train_fold))
+            #Prueba red neuronal y guarda el resultado en acc_list.
+            acc_list.append(mlp.score(x_test_fold, np.ravel(y_test_fold)))
+
+        print('List of possible accuracy:', acc_list)
+        #Considera el acc máximo
+        accuracy=np.max(acc_list)
         return accuracy
 
 #Función que crea una poblacion inicial. Se retorna una arreglo de individuos.
@@ -171,6 +175,9 @@ def init_population(population_size):
     for i in range(population_size):
         population.append(Indivual())
     return population
+
+def genetico():
+    print("Generando poblacion")
 
 #1.Se genera Poblacion (o posibles soluciones)
 #2.Calculo del fitness (o costo) (seria el ACC)
@@ -181,14 +188,6 @@ def init_population(population_size):
 
 if __name__ == '__main__':
     population_size=5
-    target_column = ['clase'] 
-    predictors = list(set(list(df.columns))-set(target_column))
-    df[predictors] = df[predictors]/df[predictors].max()
-    
-    X = df[predictors].values
-    y = df[target_column].values
-    #Divide dataset
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.50, random_state=40)
     
     fish=Indivual()
     #population=init_population(population_size)
