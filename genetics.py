@@ -22,6 +22,8 @@ from sklearn.metrics import mean_squared_error
 from sklearn.metrics import r2_score
 from sklearn.metrics import classification_report,confusion_matrix
 from sklearn.model_selection import cross_validate,KFold,cross_val_score,StratifiedKFold
+import warnings
+from sklearn.exceptions import ConvergenceWarning
 from math import sqrt
 
 #Lectura del dataframe de forma global.
@@ -62,7 +64,7 @@ class Indivual():
             self.hidden_layers = np.random.randint(2, size=4)
             #Conversión a decimal.
             aux_decimal= self.get_hidden_layers2Int()
-            #Se verifica que el número de capas ocultas sea mayor a 0.
+            #Se verifica que el número de capas ocultas sea mayor a 0 y menor a 4.
             #   Si no es así, se vuelve a generar un valor al azar.
             while aux_decimal==0 or aux_decimal>4:
                 self.hidden_layers = np.random.randint(2, size=4)
@@ -79,24 +81,27 @@ class Indivual():
                 aux_decimal= self.get_num_epochs2Int()
 
             #Se genera Learning Rate.
-            self.learning_rate = np.random.randint(2, size=7)
+            self.learning_rate = np.random.randint(2, size=5)
             #Conversión a decimal.
             aux_decimal= self.get_learning_rate2Float()
-            #Se verifica que el learning rate esté entre 0.1 y 0.64.
+            #Se verifica que el learning rate esté entre 0.1 y 0.3.
             #   Si no es así, se vuelve a generar un valor al azar.
-            while aux_decimal<=0 or aux_decimal>1:
-                self.learning_rate = np.random.randint(2, size=7)
+            while aux_decimal<=0 or aux_decimal>0.3:
+                self.learning_rate = np.random.randint(2, size=5)
                 aux_decimal=self.get_learning_rate2Float()
 
             #Se genera Momentum.
-            self.momentum = np.random.randint(2, size=7)
+            self.momentum = np.random.randint(2, size=5)
             #Conversión a decimal.
             aux_decimal= self.get_momentum_2Float()
             #Se verifica que el momentum esté entre 0.1 y 1.
             #   Si no es así, se vuelve a generar un valor al azar.
-            while aux_decimal<=0 or aux_decimal>1:
-                self.momentum = np.random.randint(2, size=7)
+            while aux_decimal<=0 or aux_decimal>0.3:
+                self.momentum = np.random.randint(2, size=5)
                 aux_decimal=self.get_momentum_2Float()
+            
+            #Se calcula el fitness del individuo.
+            self.calculate_fitness()
         #Si hay algún cromosoma, se inicializan los genes con él.
         else:
             self.num_neurons = Chromosome[0]
@@ -105,8 +110,6 @@ class Indivual():
             self.learning_rate = Chromosome[3]
             self.momentum = Chromosome[4]
         
-        #Se calcula el fitness del individuo.
-        self.calculate_fitness()
     
     #Método que retorna el valor del número de neuronas como entero.
     def get_num_neurons2Int(self):
@@ -142,11 +145,26 @@ class Indivual():
     #Método que retorna el valor del Momentum como array de bits.
     def get_momentum (self):
         return self.momentum
+
+    def validate_parameter(self):
+        bandera = True
+        if (self.get_num_neurons2Int() < 2 or self.get_num_neurons2Int() > 13):
+            bandera = False
+        elif (self.get_hidden_layers2Int() == 0 or self.get_hidden_layers2Int() > 4):
+            BANDERA = False
+        elif (self.get_num_epochs2Int == 0):
+            bandera = False
+        elif (self.get_learning_rate2Float() == 0 or self.get_learning_rate2Float() > 0.3):
+            bandera = False
+        elif (self.get_momentum_2Float() > 0.3):
+            bandera = False
+        return bandera
+
+
+    #Imprime cromosoma.
     def printChromosome(self):
         print(f'**Individuo**\nNum_neurons: {self.get_num_neurons2Int()}\nHidden_layers: {self.get_hidden_layers2Int()}\nNum_epochs: {self.get_num_epochs2Int()}\nLearning_rate: {self.get_learning_rate2Float()}\nMomentum: {self.get_momentum_2Float()}\nFitness: {self.fit}')
 
-        
-    
     #Función fitness
     #Entrena a la red neuronal con los genes del individuo y regresa el
     # Acc como fitness del individuo.
@@ -173,11 +191,49 @@ class Indivual():
         #Considera el acc máximo
         accuracy=np.max(acc_list)
         self.fit=accuracy
+    
+    #Muta los genes del individuo.
+    def mutate(self):
+        randGen = random.randint(0,4)
+        
+        if (randGen == 0):
+            randBit= random.randint(0, 3)
+            if(self.num_neurons[randBit]==0):
+                self.num_neurons[randBit] = 1
+            else:
+                self.num_neurons[randBit] = 0
+        elif (randGen == 1):
+            randBit = random.randint(0, 3)
+            if(self.hidden_layers[randBit]==0):
+                self.hidden_layers[randBit] = 1
+            else:
+                self.hidden_layers[randBit] = 0
+        elif (randGen == 2):
+            randBit = random.randint(0, 9)
+            if(self.num_epochs[randBit]==0):
+                self.num_epochs[randBit]=1
+            else:
+                self.num_epochs[randBit] = 0
+        elif (randGen == 3):
+            randBit = random.randint(0, 4)
+            if(self.learning_rate[randBit]==0):
+                self.learning_rate[randBit]=1
+            else:
+                self.learning_rate[randBit] = 0
+        elif (randGen == 4):
+            randBit = random.randint(0, 4)
+            if(self.momentum[randBit]==0):
+                self.momentum[randBit]=1
+            else:
+                self.momentum[randBit] = 0
+            
 
 class Population():
     #Constructor que crea una poblacion inicial. Se retorna una arreglo de individuos.
     def __init__(self, population_size):
+        self.population_size=population_size
         self.population=[]
+        self.generations=0
         for i in range(population_size):
             self.population.append(Indivual())
 
@@ -189,12 +245,18 @@ class Population():
         selected= sorted_population[len(sorted_population)-n_selection :]
         #Ordena de mayor a menor a los individuos seleccionados.
         self.selected= sorted(selected, key=lambda x: x.fit, reverse=True)
+        #De la población, solo sobreviven los aptos.
+        self.population=self.selected
+        self.population_size=len(self.population)
     
-    def reproduction(self):
+    def reproduction(self, percentage_mutation):
         point=0
         parents=[]
         Chromosome1=[]
         Chromosome2=[]
+        children=[]
+        childrenMutated=[]
+        childrenNoMutated=[] 
         
         for i in range(len(self.selected)):
             #Selecciona dos padres al azar.
@@ -231,19 +293,63 @@ class Population():
             Chromosome1.append(np.concatenate((parents[0].get_momentum()[:point],parents[1].get_momentum()[point:])))
             Chromosome2.append(np.concatenate((parents[1].get_momentum()[:point],parents[0].get_momentum()[point:])))
 
-            child1=Indivual(Chromosome1)
-            child2=Indivual(Chromosome2)
             """print(f"Punto:{point}")
             print(f"Padre: {parents[0].get_num_epochs()}")
             print(f"Madre: {parents[1].get_num_epochs()}")
             print(f"Nuevo gen 1: {Chromosome1[2]}")
             print(f"Nuevo gen 2: {Chromosome2[2]}")"""
-            self.selected.append(child1)
-            self.selected.append(child2)
+            
+            #Naces hijos
+            child1=Indivual(Chromosome1)
+            child2=Indivual(Chromosome2)
+            #Crece población si los hijos sobreviven.
+            if(child1.validate_parameter()):
+                child1.calculate_fitness()
+                children.append(child1)
+            if(child2.validate_parameter()):
+                child2.calculate_fitness()
+                children.append(child2)
+            #Reinicio de cromosomas.
             Chromosome1=[]
             Chromosome2=[]
+        
+        numMutation = (len(children)*percentage_mutation)//100
+        #print(f"Total: {len(children)}, numMutation: {numMutation}")
+
+        if (numMutation > 0):
+            for i in range(numMutation):
+                ranchild = random.randint(0, len(children))
+                children[ranchild].mutate()
+                if(children[ranchild].validate_parameter()):
+                    children[ranchild].calculate_fitness()
+                    self.selected.append(children[ranchild])
+                    childrenMutated.append(children[ranchild])         
+            childrenNoMutated=[i for i in children if i not in childrenMutated]
+        else:
+            for i in range(len(children)):
+                self.selected.append(children[i])
+          
+        #Población apta + hijos de población apta. Estos generarán la siguiente generación
         self.population=self.selected
-    
+        self.generations+=1
+
+    def population2Data(self):
+        df=pd.DataFrame(columns=["num_neurons","hidder_layers","num_epochs","learning_rate","momentum", "fitness"])
+        for i in range(self.population_size):
+            individual={
+                "num_neurons":self.population[i].get_num_neurons2Int(),
+                "hidder_layers":  self.population[i].get_hidden_layers2Int(),
+                "num_epochs": self.population[i].get_num_epochs2Int(),
+                "learning_rate": self.population[i].get_learning_rate2Float(),
+                "momentum": self.population[i].get_momentum_2Float(),
+                "fitness": self.population[i].fit
+            }
+            df = df.append(individual, ignore_index = True)
+            
+
+        df.to_csv(f'Generation_{self.generations}.csv', index=False)
+
+
     def get_best(self):
         return max(individuo.fit for individuo in self.population)
 
@@ -255,22 +361,21 @@ class Population():
             
             
 #Algoritmo genético.
-def genetics(population_size, n_generations):
+def genetics(population_size, n_generations, n_selection):
     print("Generando poblacion")
     ParametrosRNA = Population(population_size)
     for i in range(n_generations):
         print(f"**********Generacion {i}**************")
-        ParametrosRNA.selection(4)
-        ParametrosRNA.reproduction()
-        #print(ParametrosRNA.population[8].printChromosome())
-        #print(ParametrosRNA.population[9].printChromosome())
-        print(len(ParametrosRNA.population))
+        ParametrosRNA.selection(n_selection)
+        ParametrosRNA.population2Data()
+        print(ParametrosRNA.population_size)
         print(ParametrosRNA.get_best())
         print(ParametrosRNA.get_min())
-
-
-
-
+        ParametrosRNA.reproduction(0.2)
+        
+        #print(ParametrosRNA.population[8].printChromosome())
+        #print(ParametrosRNA.population[9].printChromosome())
+        
 #1.Se genera Poblacion (o posibles soluciones)-
 #2.Calculo del fitness (o costo) (seria el ACC)-
 #3.Seleccion de padres
@@ -279,6 +384,7 @@ def genetics(population_size, n_generations):
 #Repetir varias generaciones
 
 if __name__ == '__main__':
-    genetics(population_size=6, n_generations=2)
+    warnings.simplefilter("ignore", category=ConvergenceWarning)
+    genetics(population_size=50, n_generations=3,n_selection=25)
     #fish=Indivual()
     #print(fish.get_num_epochs())
