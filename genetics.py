@@ -160,6 +160,9 @@ class Indivual():
     #Método que retorna el valor del fitness del individuo.
     def get_fitness (self):
         return self.fit
+    #Método que retorna el valor del fitness de entrenamiento del individuo.
+    def get_fitness_train (self):
+        return self.fit_train
 
     #Método que valida si los genes del individuo se encuentran dentro de los
     #   rangos establecidos para evaluar su aptitud.
@@ -179,7 +182,7 @@ class Indivual():
 
     #Retorna el cromosoma del individuo como cadena.
     def getChromosome(self):
-        return str(f'Num_neurons: {self.get_num_neurons2Int()}\nHidden_layers: {self.get_hidden_layers2Int()}\nNum_epochs: {self.get_num_epochs2Int()}\nLearning_rate: {self.get_learning_rate2Float()}\nMomentum: {self.get_momentum_2Float()}\nFitness: {self.fit}')
+        return str(f'Num_neurons: {self.get_num_neurons2Int()}\nHidden_layers: {self.get_hidden_layers2Int()}\nNum_epochs: {self.get_num_epochs2Int()}\nLearning_rate: {self.get_learning_rate2Float()}\nMomentum: {self.get_momentum_2Float()}\nFitness_train: {self.fit_train}\nFitness: {self.fit}')
 
     #Función fitness
     #Entrena a la red neuronal con los genes del individuo y regresa el
@@ -187,7 +190,8 @@ class Indivual():
     def calculate_fitness(self):
         #Obtenemos una lista para pasarle el parámetro de capas ocultas a la red neuronal.
         capasOcultas = []
-        acc_list=[]
+        acc_list_train=[]
+        acc_list_test=[]
         for i in range (self.get_hidden_layers2Int()):
             capasOcultas.append(self.get_num_neurons2Int())
         #Aplicamos los hiperparámetros necesarios para generar el modelo de la red neuronal (instancia).
@@ -200,14 +204,21 @@ class Indivual():
             y_train_fold, y_test_fold = y[train_i], y[test_i]
             #Entrena red neuronal.
             mlp.fit(x_train_fold, np.ravel(y_train_fold))
-            acc_list.append(mlp.score(x_train_fold, np.ravel(y_train_fold)))
-            #Prueba red neuronal y guarda el resultado en acc_list.
-            acc_list.append(mlp.score(x_test_fold, np.ravel(y_test_fold)))
+            #Guarda accuracies del entrenamiento en acc_list_train.
+            acc_list_train.append(mlp.score(x_train_fold, np.ravel(y_train_fold)))
+            #Prueba red neuronal y guarda el resultado en acc_list_test.
+            acc_list_test.append(mlp.score(x_test_fold, np.ravel(y_test_fold)))
 
-        print('Lista de accuracies de test:', acc_list)
         #Toma como fitness el accuracy máximo de los obtenidos en los tests.
-        accuracy=np.max(acc_list)
+        accuracy=np.max(acc_list_test)
         self.fit=accuracy
+        #Guarda el accuracy del entrenamiento con el fin de evitar que se caiga en overfitting o underfitting.
+        if accuracy==acc_list_test[0]:
+            self.fit_train=acc_list_train[0]
+            #print(f'Lista de accuracies de train / test: [{acc_list_train[0]} / {acc_list_test[0]}]')
+        else:
+            self.fit_train=acc_list_train[1]
+            #print(f'Lista de accuracies de train / test: [{acc_list_train[1]} / {acc_list_test[1]}]')
     
     #Método que muta uno de los genes del individuo.
     def mutate(self):
@@ -268,6 +279,10 @@ class Population():
     def selection(self, n_selection):
         #Ordena a los individuos de la población de menor a mayor con base en sus fitness.
         sorted_population= sorted(self.population, key=lambda x: x.fit)
+        #Si uno de los individuos tiene overfitting o underfitting, los elimina de la selección.
+        for i in range(len(sorted_population)):
+            if abs(sorted_population[i].get_fitness_train()-sorted_population[i].get_fitness())>5:
+                sorted_population.pop(i)
         #Selecciona los individuos con mejor fitness y los guarda en una lista.
         selected= sorted_population[len(sorted_population)-n_selection :]
         #Ordena de mayor a menor a los individuos seleccionados.
@@ -377,7 +392,7 @@ class Population():
     #Guarda a los individuos de la población en un CSV (registro de la población).
     def population2Data(self):
         #Crea dataframe de generación.
-        df=pd.DataFrame(columns=["num_neurons","hidder_layers","num_epochs","learning_rate","momentum", "fitness"])
+        df=pd.DataFrame(columns=["num_neurons","hidder_layers","num_epochs","learning_rate","momentum", "fitness_train","fitness"])
         #Registra a cada individuo en el csv.
         for i in range(self.population_size):
             #Crea un diccionario para guardar las características importantes del individuo.
@@ -387,7 +402,8 @@ class Population():
                 "num_epochs": self.population[i].get_num_epochs2Int(),
                 "learning_rate": self.population[i].get_learning_rate2Float(),
                 "momentum": self.population[i].get_momentum_2Float(),
-                "fitness": self.population[i].fit
+                "fitness_train": self.population[i].get_fitness_train(),
+                "fitness": self.population[i].get_fitness()
             }
             #Apendiza los valores en el dataframe.
             df.loc[len(df)] = individual
