@@ -1,4 +1,4 @@
-#Notas importanes.
+#Notas importantes.
 #Un individuo tiene Cromosomas y los Cromosomas son estructuras formadas por Genes.
 #Un individuo será representado por un objeto perteneciente a la clase Individual.
 #Un Cromosoma estará representado por el conjunto de hiperparámetros para la red neuronal (una lista).
@@ -14,7 +14,7 @@
 #   3.Seleccion de los mejores individuos de la población (selección natural).
 #   4.Cruza de los padres (reproducción).
 #   5.Mutacion en los hijos.
-#   6.Repetición de los pasos 2 a 5 por N generaciones en la población.
+#   6.Repetición de los pasos 2 a 5 hasta que el máximo y mínimo de aptitud en la población no mejoren.
 
 #*************************Importación de bibliotecas y módulos***********************
 import numpy as np
@@ -58,7 +58,7 @@ maxs = []
 
 #*************************Clase individuo*********************************
 #Permite la creación de un nuevo individuo.
-class Indivual():
+class Individual():
     #Constructor. Puede recibir o no un cromosoma ya previamente construido (una inyección de genes/organismo genéticamente modificado).
     def __init__(self, Chromosome=None):
         #Si no hay cromosoma, este se genera con genes con valores al azar.
@@ -67,20 +67,20 @@ class Indivual():
             self.num_neurons = np.random.randint(2, size=4)
             #Conversión a decimal.
             aux_decimal= self.get_num_neurons2Int() 
-            #Se verifica que el número de neuronas esté entre 1 y 13.
+            #Se verifica que el número de neuronas esté entre 3 y 13.
             #   Si no es así, se vuelve a generar un valor al azar.
-            while aux_decimal<=2 or aux_decimal>13:
+            while aux_decimal<3 or aux_decimal>13:
                 self.num_neurons = np.random.randint(2, size=4)
                 aux_decimal=self.get_num_neurons2Int()
             
             #Se genera número de capas ocultas.
-            self.hidden_layers = np.random.randint(2, size=4)
+            self.hidden_layers = np.random.randint(2, size=3)
             #Conversión a decimal.
             aux_decimal= self.get_hidden_layers2Int()
-            #Se verifica que el número de capas ocultas sea mayor a 0 y menor a 4.
+            #Se verifica que el número de capas ocultas sea mayor a 0 y menor a 5.
             #   Si no es así, se vuelve a generar un valor al azar.
             while aux_decimal==0 or aux_decimal>4:
-                self.hidden_layers = np.random.randint(2, size=4)
+                self.hidden_layers = np.random.randint(2, size=3)
                 aux_decimal= self.get_hidden_layers2Int()
             
             #Se genera número de épocas.
@@ -168,15 +168,15 @@ class Indivual():
     #   rangos establecidos para evaluar su aptitud.
     def validate_parameter(self):
         bandera = True
-        if (self.get_num_neurons2Int() < 2 or self.get_num_neurons2Int() > 13):
+        if (self.get_num_neurons2Int() < 3 or self.get_num_neurons2Int() > 13):
             bandera = False
-        elif (self.get_hidden_layers2Int() == 0 or self.get_hidden_layers2Int() > 4):
+        if (self.get_hidden_layers2Int() == 0 or self.get_hidden_layers2Int() > 4):
             BANDERA = False
-        elif (self.get_num_epochs2Int == 0):
+        if (self.get_num_epochs2Int() == 0):
             bandera = False
-        elif (self.get_learning_rate2Float() == 0 or self.get_learning_rate2Float() > 0.3):
+        if (self.get_learning_rate2Float() == 0 or self.get_learning_rate2Float() > 0.3):
             bandera = False
-        elif (self.get_momentum_2Float() > 0.3):
+        if (self.get_momentum_2Float() > 0.3):
             bandera = False
         return bandera
 
@@ -237,7 +237,7 @@ class Indivual():
                 self.num_neurons[randBit] = 0
         #El gen seleccionado es el número de capas ocultas.
         elif (randGen == 1):
-            randBit = random.randint(0, 3)
+            randBit = random.randint(0, 2)
             if(self.hidden_layers[randBit]==0):
                 self.hidden_layers[randBit] = 1
             else:
@@ -273,7 +273,7 @@ class Population():
         self.population=[]
         self.generations=1
         for i in range(population_size):
-            self.population.append(Indivual())
+            self.population.append(Individual())
 
     #Método que selecciona a los mejores individuos de la población.
     def selection(self, n_selection):
@@ -339,8 +339,8 @@ class Population():
             Chromosome2.append(np.concatenate((parents[1].get_momentum()[:point],parents[0].get_momentum()[point:])))
             
             #Nacen hijos de la feliz pareja.
-            child1=Indivual(Chromosome1)
-            child2=Indivual(Chromosome2)
+            child1=Individual(Chromosome1)
+            child2=Individual(Chromosome2)
 
             #Se verifica que los genes de los hijos sean válidos para entrar en la población
             #   y por ende esta crece. De lo contrario, los nuevos individuos se descartan
@@ -433,6 +433,20 @@ class Population():
     #Método que retorna el número de generaciones de la población.
     def get_generations(self):
         return self.generations
+
+#Método para graficar las estadísticas de los acc por generación.
+def graficar(generations):
+    #Plotea los puntos indicados por generación.
+    for gen in range(generations):
+        y = []
+        y.append(mins[gen])
+        y.append(means[gen])
+        y.append(maxs[gen])
+        x = [gen+1 for num in range(len(y))]
+        plt.plot(x,y,"o-")
+    
+    #Muestra gráfica final.
+    plt.show()
                  
 #************************************************Algoritmo genético******************************************
 def genetics(population_size, n_selection, percentage_mutation):
@@ -471,20 +485,6 @@ def genetics(population_size, n_selection, percentage_mutation):
     graficar(i)
     print(f"Min: {mins[i-1]}, Mean:{means[i-1]}, Max:{maxs[i-1]}")
     print(f"El cromosoma del individuo mas apto fue:\n{ParametrosRNA.population[0].getChromosome()}")
-
-#Método para graficar las estadísticas de los acc por generación.
-def graficar(generations):
-    #Plotea los puntos indicados por generación.
-    for gen in range(generations):
-        y = []
-        y.append(mins[gen])
-        y.append(means[gen])
-        y.append(maxs[gen])
-        x = [gen+1 for num in range(len(y))]
-        plt.plot(x,y,"o-")
-    
-    #Muestra gráfica final.
-    plt.show()
         
 #***************************************Módulo principal********************************************
 if __name__ == '__main__':
